@@ -1,0 +1,23 @@
+{
+  "skill_name": "memory-optimizer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My CLAUDE.md is 280 lines and I'm running out of tokens. My .claude/rules/ has subdirectories. The correct state is flat. Flatten it now — dry run first, then execute after confirmation. Also I think I'm importing the same shared rules twice.",
+      "expected_output": "Runs 'find .claude/rules -type d' to verify subdirs exist, produces dry-run report with change summary table showing: files to move from subdirectories, duplicate @imports to remove. Asks for confirmation before executing. After confirmation, flattens subdirs and produces final verification report.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I keep hitting token limits. /memory shows like 20 files loading at startup. Can you optimize my Claude Code setup?",
+      "expected_output": "Runs /memory to see current state, identifies global rules causing bloat, checks for scoped rules incorrectly loading globally, produces analysis report with file sizes, dry-run plan to reduce startup load. Focuses on moving scoped rules out of global load and splitting oversized files.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I added a new rule file .claude/rules/react.md but it's not being followed when I work on React components. The rule says 'use functional components with hooks' but Claude keeps suggesting class components.",
+      "expected_output": "Checks react.md frontmatter for correct paths: pattern, verifies file isn't over 100 lines, checks rule is concrete not abstract, verifies /memory shows it loading correctly when React files accessed. Diagnoses why rule isn't triggering (bad paths? abstract rule? file too long?).",
+      "files": []
+    }
+  ]
+}
