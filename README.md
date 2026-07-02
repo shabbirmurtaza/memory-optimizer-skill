@@ -3,11 +3,13 @@
 Audits and fixes Claude Code memory/rules structure in one pass.
 
 ## What it does
-- Flattens .claude/rules/ subdirectories (confirmed bug fix)
+- Audits .claude/rules/ structure (subdirs are officially supported; one topic per file)
 - Converts globs: → paths: frontmatter
 - Removes duplicate @imports vs global ~/.claude/CLAUDE.md
 - Enforces file size limits (rules <100 lines, CLAUDE.md <200 lines)
-- Creates CLAUDE.local.md template
+- Audits auto memory (MEMORY.md 200-line/25KB startup budget, staleness, duplication)
+- Recommends CLAUDE.md → Skills extraction for occasional workflows
+- Handles CLAUDE.local.md (optional; worktree caveat)
 - Reports rule conflicts without auto-resolving
 
 ## Performance
