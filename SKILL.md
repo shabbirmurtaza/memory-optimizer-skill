@@ -33,6 +33,8 @@ When these mix, rules bloat, conflicts appear, tokens waste. This skill fixes th
 - Occasional, specialized domain knowledge (a migration runbook, a deploy procedure, a one-off workflow). This belongs in a **Skill**, not in always-loaded memory — see "CLAUDE.md vs Skills" below.
 - Overly specific schema/DB detail irrelevant to most tasks.
 - Anything duplicated across sections or across scopes (global + project).
+- Maintainer-only notes ("why this rule exists", changelog) — convert to block-level HTML comments (`<!-- ... -->`): Claude Code strips them before injection, so they cost zero context while staying visible to humans editing the file. (Comments inside code blocks are preserved.)
+- Rules that MUST run at a fixed point (before every commit, after each edit) — memory is context, not enforcement. Recommend converting to a PreToolUse/lifecycle **hook** in settings; keep at most a one-line pointer in CLAUDE.md.
 
 **CLAUDE.md vs Skills**: Two different loading models — keep content in the right one.
 - **CLAUDE.md / rules** load *every session, automatically*. Best for universal rules that apply to most tasks (code style, build commands, safe-change rules). Risk: bloats context, buries key rules.
@@ -93,20 +95,28 @@ Always start here. Gather state, show what you found.
 
 **MANDATORY: Run file size checks first**
 ```bash
-# Check all rule files
-wc -l .claude/rules/*.md 2>/dev/null | sort -n
-# Check CLAUDE.md
-wc -l CLAUDE.md
+# Rule files (recursive) + user-level rules
+find .claude/rules -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
+find ~/.claude/rules -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
+# Project CLAUDE.md — BOTH valid locations
+wc -l CLAUDE.md .claude/CLAUDE.md 2>/dev/null
+# Nested + ancestor CLAUDE.md files (monorepo): ancestors load at launch,
+# nested ones load on demand when Claude reads files in that subtree
+find . -mindepth 2 -name "CLAUDE.md" -not -path "*/node_modules/*" 2>/dev/null
 ```
 
 Flag any file over 100 lines immediately. Flag CLAUDE.md over 200 lines. These MUST be addressed.
+
+**Monorepo note:** if ancestor/other-team CLAUDE.md files load irrelevantly, recommend `claudeMdExcludes` (glob patterns vs absolute paths) in `.claude/settings.local.json` — managed-policy CLAUDE.md cannot be excluded.
 
 ```
 ## Analysis Report
 
 ### Current structure
-- CLAUDE.md: N lines
+- CLAUDE.md: N lines (location: ./CLAUDE.md or ./.claude/CLAUDE.md)
 - .claude/rules/: N files, M subdirectories
+- ~/.claude/rules/ (user-level): N files
+- Nested/ancestor CLAUDE.md files: [list]
 - Global rules: [list]
 - Scoped rules: [list]
 
@@ -164,6 +174,7 @@ find .claude/rules -type d
 - **One topic per file** (`api-design.md`, `testing.md`) — flag grab-bag files mixing topics.
 - **Every file under 100 lines** — flag with split suggestions.
 - **Scoped vs global is intentional** — a file without `paths:` loads every session; verify that's deliberate for each.
+- **User-level rules** (`~/.claude/rules/`) are official too — loaded before project rules (project wins). Audit them for size/duplication against project rules; personal preferences belong there, not copied into every repo.
 - **Flatten ONLY if** the user asks for a flat convention, or the project must support Claude Code <2.x. Never present flattening as a correctness fix.
 
 If flattening is explicitly requested:
@@ -562,6 +573,11 @@ Next: Run /memory to verify clean session load.
 
 **"Rules not being followed"**
 → File likely over 100 lines or rules are abstract. Split into smaller topic files or make rules concrete. These are CLAUDE.md failures, not Claude failures — always fixable.
+→ If the rule is "must ALWAYS happen at point X" (pre-commit check, post-edit format): CLAUDE.md is context, not enforcement — no wording fixes that. Convert it to a hook (PreToolUse or the relevant lifecycle event); hooks execute regardless of what Claude decides.
+→ To see exactly which instruction files loaded (and why a scoped rule didn't), suggest the `InstructionsLoaded` hook for logging — stronger evidence than eyeballing `/memory`.
+
+**"Instructions lost after /compact"**
+→ Root CLAUDE.md is re-read and re-injected after compaction; NESTED CLAUDE.md files are not — they reload only when Claude next reads a file in that subtree. Instructions given only in conversation don't survive at all: promote them to CLAUDE.md (instruction) or let auto memory keep them (learning).
 
 **Diagnostic signals (which failure mode is it?)**
 → Claude *repeats a mistake* despite a rule against it = the rule is buried; the file is too long. Prune with the deletion filter, or move the rule higher.
