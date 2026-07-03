@@ -9,7 +9,7 @@ compatibility: Requires Bash, Read, Write, Edit tools. Assumes Claude Code proje
 Claude Code's memory system has two parts that must stay separate:
 
 **Instruction memory** = Stable rules, policies, constraints (CLAUDE.md, .claude/rules/) — written by the user.
-**Learning memory** = Experience, preferences, fixes — written by Claude. Two flavors coexist: Claude Code's official **auto memory** (`~/.claude/projects/<project>/memory/`, MEMORY.md index) and project conventions like OpenWolf (`.wolf/cerebrum.md`, memory.md, buglog.json).
+**Learning memory** = Experience, preferences, fixes — written by Claude. Two flavors coexist: Claude Code's official **auto memory** (`<config-dir>/projects/<project>/memory/`, MEMORY.md index) and project conventions like OpenWolf (`.wolf/cerebrum.md`, memory.md, buglog.json).
 
 When these mix, rules bloat, conflicts appear, tokens waste. This skill fixes that.
 
@@ -19,7 +19,7 @@ When these mix, rules bloat, conflicts appear, tokens waste. This skill fixes th
 
 **Global rules**: Files without `paths:` frontmatter. Load once at session start.
 
-**Auto memory**: Official Claude-written memory (stable, on by default since v2.1.59). Lives at `~/.claude/projects/<project>/memory/`, shared across all worktrees of the repo. Only the first 200 lines or 25KB of `MEMORY.md` load at startup; topic files load on demand. Toggle via `/memory` or `autoMemoryEnabled` in settings. It is NOT a substitute for CLAUDE.md — instructions stay user-written.
+**Auto memory**: Official Claude-written memory (stable, on by default since v2.1.59). Lives at `<config-dir>/projects/<project>/memory/` where config-dir = `$CLAUDE_CONFIG_DIR` or `~/.claude`; shared across all worktrees of the repo. Only the first 200 lines or 25KB of `MEMORY.md` load at startup; topic files load on demand. Toggle via `/memory` or `autoMemoryEnabled` in settings. It is NOT a substitute for CLAUDE.md — instructions stay user-written.
 
 **Rule pollution**: Experience notes, preferences, lessons creeping into CLAUDE.md or rule files over time. Makes files huge, rules ignored.
 
@@ -95,10 +95,17 @@ Always start here. Gather state, show what you found.
 
 **MANDATORY: Run file size checks first**
 ```bash
+# User config dir may be relocated (claude-pro alias etc.) — NEVER hardcode ~/.claude
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
 # Rule files (recursive) + user-level rules
 find .claude/rules -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
-find ~/.claude/rules -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
-# Project CLAUDE.md — BOTH valid locations
+find "$CFG/rules" -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
+# If CFG differs from ~/.claude, also check ~/.claude/rules for strays
+# (plain `claude` sessions still read it)
+[ "$CFG" != "$HOME/.claude" ] && find "$HOME/.claude/rules" -name "*.md" -exec wc -l {} + 2>/dev/null | sort -n
+
+# Project CLAUDE.md — BOTH valid locations (project-relative, NOT affected by CLAUDE_CONFIG_DIR)
 wc -l CLAUDE.md .claude/CLAUDE.md 2>/dev/null
 # Nested + ancestor CLAUDE.md files (monorepo): ancestors load at launch,
 # nested ones load on demand when Claude reads files in that subtree
@@ -139,7 +146,7 @@ Create change summary table. Show exactly what will happen.
 | DELETE | rules/openwolf.md | duplicate of @import |
 | EXTRACT | CLAUDE.md deploy section → skill | occasional workflow, not universal rule |
 | FIX | rules/react.md globs→paths | wrong frontmatter key |
-| TRIM | ~/.claude/projects/<project>/memory/MEMORY.md | over 200-line startup budget |
+| TRIM | <config-dir>/projects/<project>/memory/MEMORY.md | over 200-line startup budget |
 
 **Ask for confirmation before proceeding.**
 
@@ -174,7 +181,7 @@ find .claude/rules -type d
 - **One topic per file** (`api-design.md`, `testing.md`) — flag grab-bag files mixing topics.
 - **Every file under 100 lines** — flag with split suggestions.
 - **Scoped vs global is intentional** — a file without `paths:` loads every session; verify that's deliberate for each.
-- **User-level rules** (`~/.claude/rules/`) are official too — loaded before project rules (project wins). Audit them for size/duplication against project rules; personal preferences belong there, not copied into every repo.
+- **User-level rules** (`<config-dir>/rules/`, i.e. `$CLAUDE_CONFIG_DIR/rules` or `~/.claude/rules`) are official too — loaded before project rules (project wins). Audit them for size/duplication against project rules; personal preferences belong there, not copied into every repo.
 - **Flatten ONLY if** the user asks for a flat convention, or the project must support Claude Code <2.x. Never present flattening as a correctness fix.
 
 If flattening is explicitly requested:
@@ -222,9 +229,10 @@ Abstract rules → flag in conflicts report.
 
 **Import mechanics (official):** max 4 hops of recursion; relative paths resolve against the importing file, not CWD; imports inside code spans/fenced blocks are ignored (wrap `@name` in backticks to mention without importing); external imports require one-time user approval. Imported files still load at session start — @imports organize content, they do NOT reduce context cost.
 
-First check global rules:
+First check global rules (config-dir aware):
 ```bash
-cat ~/.claude/CLAUDE.md | grep -E "^@|shared-rules"
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+grep -E "^@|shared-rules" "$CFG/CLAUDE.md"
 ```
 
 Then check project CLAUDE.md:
@@ -412,20 +420,21 @@ Run every candidate line through the deletion filter and "What to cut" list (see
 
 **Move experience notes to learning memory.** Destination depends on the project:
 - OpenWolf project (`.wolf/` exists) → `.wolf/cerebrum.md`: preferences → `## User Preferences`, learnings → `## Key Learnings`, mistakes → `## Do-Not-Repeat`
-- Otherwise → official auto memory (`~/.claude/projects/<project>/memory/MEMORY.md` + topic files)
+- Otherwise → official auto memory (`<config-dir>/projects/<project>/memory/MEMORY.md` + topic files)
 
 Add to change table:
 - `MOVE | experience note from CLAUDE.md → {learning memory} | memory separation`
 
 ## Step 8: Audit Auto Memory
 
-Official auto memory lives at `~/.claude/projects/<project>/memory/` (custom location via `autoMemoryDirectory` in settings). Claude writes it; the user may edit or delete it freely.
+Official auto memory lives at `<config-dir>/projects/<project>/memory/` — the config dir is `$CLAUDE_CONFIG_DIR` if set, else `~/.claude` (custom location via `autoMemoryDirectory` in settings). Claude writes it; the user may edit or delete it freely.
 
 ```bash
-# Locate and size the auto memory index
-MEMDIR=~/.claude/projects/*/memory  # match this repo's project dir
+# Locate and size the auto memory index (config-dir aware)
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+MEMDIR=$(find "$CFG/projects" -maxdepth 2 -type d -name memory 2>/dev/null | grep -i "$(basename "$PWD")")
 wc -l -c "$MEMDIR/MEMORY.md" 2>/dev/null
-find "$MEMDIR" -type f -name "*.md"
+find "$MEMDIR" -type f -name "*.md" 2>/dev/null
 ```
 
 Check:
