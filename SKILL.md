@@ -21,6 +21,10 @@ When these mix, rules bloat, conflicts appear, tokens waste. This skill fixes th
 
 **Auto memory**: Official Claude-written memory (stable, on by default since v2.1.59). Lives at `<config-dir>/projects/<project>/memory/` where config-dir = `$CLAUDE_CONFIG_DIR` or `~/.claude`; shared across all worktrees of the repo. Only the first 200 lines or 25KB of `MEMORY.md` load at startup; topic files load on demand. Toggle via `/memory` or `autoMemoryEnabled` in settings. It is NOT a substitute for CLAUDE.md — instructions stay user-written.
 
+**Mandated-read memory**: Files that are NOT auto-loaded but which a project protocol orders Claude to read every session — e.g. OpenWolf's `.wolf/OPENWOLF.md` saying *"Before generating code, read `.wolf/cerebrum.md`"*. The token cost is identical to an auto-loaded file, but it is invisible to `/memory` AND to `/context`, so it never shows up in a normal audit. **Always audit these — they are usually the single largest token sink in a mature project.** Grep the protocol files for read directives; see Step 8b.
+
+**The learning-memory paradox**: This skill's own advice (Step 7) funnels experience notes *into* learning memory. Without a budget and a compaction step, that destination grows without bound and becomes the biggest cost in the project — defeating the purpose of the optimization. Learning memory needs the same discipline as instruction memory: a size ceiling, a routing rule, and an archive. Never treat "move it to cerebrum" as the end of the story.
+
 **Rule pollution**: Experience notes, preferences, lessons creeping into CLAUDE.md or rule files over time. Makes files huge, rules ignored.
 
 **Shared rules**: Conventions used across multiple repos. Can be `@import`ed or symlinked. Symlinks better for 3+ repos.
@@ -49,7 +53,9 @@ When these mix, rules bloat, conflicts appear, tokens waste. This skill fixes th
 - Always dry-run first. Show change summary table. Wait for confirmation.
 - Rule files must stay under 100 lines. CLAUDE.md under 200 lines (under 100 is the ideal — Boris Cherny keeps his personal CLAUDE.md under 100; community consensus is 300 as a hard ceiling). But apply the deletion filter before counting lines — cutting low-signal lines matters more than hitting a number.
 - Rules must be concrete and verifiable, not abstract.
-- Experience notes belong in learning memory (auto memory or `.wolf/cerebrum.md`), NEVER in CLAUDE.md or rules.
+- Experience notes belong in learning memory (auto memory or `.wolf/cerebrum.md`), NEVER in CLAUDE.md or rules. **But learning memory is budgeted too** — see Step 8b. Routing content there without checking its size is how this skill fails.
+- **Any file a protocol mandates reading in full stays under 200 lines / 25KB** — the same budget as `MEMORY.md`, for the same reason. Over that, either the protocol changes ("grep it" not "read it") or the file gets split and archived.
+- **Never delete learning memory — archive it.** Compaction moves entries to `<memory-dir>/archive/<file>-<YYYY-MM>.md`; it never discards. The knowledge stays greppable, it just stops costing tokens every session. Deleting is what defeats the purpose; archiving is what preserves it.
 - Subdirectories in `.claude/rules/` are officially supported (recursive discovery) — do NOT flatten as a "fix". Flatten only if the user prefers a flat convention, or on old Claude Code versions (<2.x) where nested rules didn't load.
 - Never hand-edit auto memory content into CLAUDE.md wholesale. Auto memory is Claude-written learning memory; promoting an entry to CLAUDE.md is a deliberate user decision, one line at a time.
 - Project root stays clean. Throwaway docs and test artifacts MUST live in `.scratch/` (gitignored). Committed docs go in `docs/`. Never let AI-generated reports/plans accumulate at root.
@@ -66,7 +72,18 @@ wc -l CLAUDE.md
 
 # Flag any file over 100 lines with specific trim suggestions
 # Flag CLAUDE.md over 200 lines
+
+# Learning memory — the destination Step 7 routes into. MUST be sized, not assumed small.
+find .wolf -maxdepth 1 -name "*.md" -exec wc -c {} + 2>/dev/null | sort -n
+
+# Mandated-read files: cost tokens every session, invisible to /memory and /context
+/usr/bin/grep -nEi "read .*\.md" .wolf/OPENWOLF.md 2>/dev/null
+
+# Resident skill/command listing (~1% context budget)
+find "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache" .claude/skills -name "SKILL.md" 2>/dev/null | wc -l
 ```
+
+**Measure learning memory in Phase 1, every time.** A project can have a perfectly lean 84-line CLAUDE.md and still burn 49k tokens per session on a mandated-read `cerebrum.md`. Auditing only the files that show up in `/memory` produces a clean report and an unchanged token bill — the most common way this skill fails.
 
 **If file over 100 lines:** Suggest specific split points (by topic, section, feature).
 **If CLAUDE.md over 200 lines:** Move sections to separate rule files or remove redundant content.
@@ -84,6 +101,11 @@ After completing the workflow, verify ALL of these:
 - [ ] Auto memory `MEMORY.md` under 200 lines / 25KB (excess is silently NOT loaded at startup)
 - [ ] No content duplicated between auto memory and CLAUDE.md
 - [ ] Instruction memory and learning memory are in separate files (no experience notes in CLAUDE.md or rule files)
+- [ ] Every protocol **mandated-read** file under 200 lines / 25KB — or the protocol reworded to grep instead of read
+- [ ] Learning memory (`.wolf/cerebrum.md` etc.) has no duplicate `##` topic headers (append-only drift)
+- [ ] Resolved/closed learning entries archived to `<memory-dir>/archive/`, not deleted
+- [ ] Active-hazard entries (deploy safety, credentials, data loss) still in the LIVE file regardless of age
+- [ ] Skill + plugin listing within ~1% of context window; zero-usage plugins disabled
 - [ ] If `$CLAUDE_CONFIG_DIR` ≠ `~/.claude`: sibling files (CLAUDE.md, RTK.md, etc.) in both scopes resolve to same inode via symlink
 - [ ] Project root has no orphan `*.md` clutter (design docs, test reports, handover notes). `.scratch/` listed in `.gitignore`. CLAUDE.md contains a "Repository Hygiene" rule.
 
@@ -162,6 +184,8 @@ After confirmation, execute each change in order:
 6. **Audit for conflicts**
 7. **Verify memory separation**
 8. **Audit auto memory**
+8b. **Audit protocol learning memory** (`.wolf/`, mandated-read files) — never skip
+8c. **Audit skill & plugin listing**
 9. **Check gitignore**
 10. **Run /memory to verify**
 11. **Report file sizes**
@@ -445,6 +469,76 @@ Check:
 
 Add to change table: `TRIM | MEMORY.md | over startup budget`, `DELETE | memory/{fact}.md | stale/contradicted`
 
+## Step 8b: Audit Protocol Learning Memory (OpenWolf `.wolf/`, or any mandated-read file)
+
+**Never skip this in a project with `.wolf/`.** Step 7 routes experience notes here, so this is where the tokens end up. It is append-only by design and nothing in the protocol ever says "consolidate" — so it grows until it dwarfs every file this skill normally audits.
+
+### Detection
+
+```bash
+# Size every learning-memory file (chars matter more than lines here — entries are long)
+find .wolf -maxdepth 1 -name "*.md" -exec wc -c -l {} + 2>/dev/null | sort -n
+
+# Which files does the protocol ORDER a full read of? These cost tokens invisibly.
+/usr/bin/grep -nEi "read .*\.(md|json)|before (generating|reading)" .wolf/OPENWOLF.md 2>/dev/null
+
+# Section drift: an append-only file grows duplicate topic headers over time
+/usr/bin/grep -c "^## " .wolf/cerebrum.md 2>/dev/null
+/usr/bin/grep "^## " .wolf/cerebrum.md 2>/dev/null | sed 's/ (.*//;s/ —.*//' | sort | uniq -c | sort -rn | head
+
+# Age distribution — how much is historical rather than live guidance?
+/usr/bin/grep -oE "20[0-9]{2}-[01][0-9]" .wolf/cerebrum.md 2>/dev/null | sort | uniq -c
+```
+
+### Thresholds
+
+| Signal | Threshold | Meaning |
+|---|---|---|
+| Mandated-read file size | > 25KB / 200 lines | Over the same budget as `MEMORY.md`. Fix the protocol or split the file. |
+| Duplicate `##` topic headers | any canonical section appearing 2+ times | Append-only drift — the protocol's own structure has been abandoned. |
+| Entries older than ~2 months | > 40% of the file | Mostly history, not guidance. Archive candidates. |
+| Append-only session log (`memory.md`) | any size | Harmless if the protocol only ever *writes* it. Confirm nothing reads it, then rotate monthly. |
+| File map (`anatomy.md`) | > 25KB | Legitimately useful, but must be grepped, never read whole. |
+
+### Fixes, cheapest first
+
+1. **Change the instruction, not the file.** Rewrite the protocol's read directive from *"read X and respect every entry"* to *"read the `## Do-Not-Repeat` section in full; grep the rest for the area being touched."* This converts a whole-file read into a targeted one, loses zero knowledge, moves zero entries, and is one line. **Always propose this first — highest payoff per unit of risk.**
+2. **Route domain content into path-scoped `.claude/rules/`.** Learnings tied to one subsystem (auth, theming, a component library) belong in a rule file with `paths:` frontmatter — it then loads only when those files are touched. This is a straight upgrade: same recall, zero baseline cost.
+3. **Merge drifted sections** back into the protocol's canonical set (OpenWolf: `## User Preferences`, `## Key Learnings`, `## Do-Not-Repeat`, `## Decision Log`), deduplicating as you go.
+4. **Archive, never delete.** Move to `.wolf/archive/cerebrum-<YYYY-MM>.md`. Archive an entry when it is *resolved history* rather than live guidance — headers marked CLOSED, FIXED, ✅, "where it lives now", or superseded by a later entry. Keep anything still true AND still behaviour-changing (apply the deletion filter, unchanged).
+
+**Safety rule:** entries describing an active hazard stay in the live file no matter how old — deploy safety, credential handling, data-loss traps. Age is not the test; "would removing this cause a mistake?" is.
+
+Add to change table: `FIX | .wolf/OPENWOLF.md read directive | whole-file read → targeted grep`, `MOVE | cerebrum {section} → .claude/rules/{topic}.md | path-scoped, loads on demand`, `ARCHIVE | cerebrum {section} → .wolf/archive/{file} | resolved history`, `MERGE | N duplicate {section} headers | append-only drift`
+
+## Step 8c: Audit the Skill & Plugin Listing
+
+Every installed skill and command contributes its **name + description** to a listing that is resident in *every* session, whether or not the skill is ever used. Plugins multiply this — one plugin can add 50+ entries. This is invisible to `/memory` (which only shows instruction memory) and is frequently the second-largest token sink after mandated-read memory.
+
+The listing is budgeted at roughly **1% of the context window** (~2,000 tokens at 200k). Past that, entries are silently truncated and skill auto-routing degrades — skills stop being selected because Claude can no longer see them.
+
+```bash
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
+# Count every entry that lands in the listing
+find "$CFG/skills" .claude/skills -name "SKILL.md" 2>/dev/null | wc -l
+find "$CFG/plugins/cache" -name "SKILL.md" 2>/dev/null | wc -l
+
+# Usage counters — lifetime totals since install, never windowed
+python3 -c "import json,os;d=json.load(open(os.path.expanduser(os.environ.get('CLAUDE_CONFIG_DIR','~/.claude')+'/.claude.json')));[print(v['usageCount'],k) for k,v in sorted((d.get('pluginUsage') or {}).items(), key=lambda x:-x[1]['usageCount'])]" 2>/dev/null
+```
+
+Check:
+- **Zero-usage plugins** → disable via `enabledPlugins: {"<name>@<marketplace>": false}`. Reversible.
+- **Duplicate collections** → a plugin and a local `.claude/skills/` copy of the same set doubles the listing. Keep whichever the usage counters show you actually invoke; disable the other.
+- **Unused individual skills** → `skillOverrides: {"<name>": "off"}` (user settings for personal skills, `.claude/settings.local.json` for project skills). Files stay on disk.
+- **A plugin's counter is seeded at install time** — a `lastUsedAt` on a zero-count plugin is the seed, not evidence of use. Confirm from transcripts before calling it used.
+- Purely passive plugins (themes, output styles, LSP backends) have no usage signal at all. Say so, recommend removal anyway since it is reversible, and let the user decide.
+
+Add to change table: `DISABLE | plugin {name} | 0 invocations, N est. resident tokens`, `DISABLE | skill {name} | unused`
+
+**Caveat:** never cut a skill collection whose members dispatch into each other (superpowers-style) piecemeal — pruning individual members can break the chain. Disable the whole thing or leave it.
+
 ## Step 9: Check Gitignore
 
 Verify `CLAUDE.local.md` is in `.gitignore` (official location is project root):
@@ -594,7 +688,13 @@ Next: Run /memory to verify clean session load.
 A great CLAUDE.md is one where Claude never has to ask what it should already know.
 
 **"High token usage persists"**
-→ Check for (1) huge monolithic rules (>200 lines), (2) too many global (unscoped) rules, (3) experience notes bloating CLAUDE.md — move to learning memory, (4) @imports mistaken for lazy loading — imported files load in full at session start, (5) oversized auto memory MEMORY.md.
+→ Check for (1) huge monolithic rules (>200 lines), (2) too many global (unscoped) rules, (3) experience notes bloating CLAUDE.md — move to learning memory, (4) @imports mistaken for lazy loading — imported files load in full at session start, (5) oversized auto memory MEMORY.md, (6) **mandated-read learning memory** — a protocol ordering a full read of `.wolf/cerebrum.md` costs the same as an auto-loaded file but appears in neither `/memory` nor `/context` (Step 8b), (7) **the skill/plugin listing** — every installed skill's description is resident every session; a few plugins can exceed the whole CLAUDE.md budget (Step 8c).
+
+**"I optimized everything and token usage barely moved"**
+→ You almost certainly audited only what `/memory` displays. `/memory` shows instruction memory. It does not show mandated-read files, the skill/plugin listing, or MCP tool schemas. Run Steps 8b and 8c before concluding the project is lean — in a mature project these two routinely outweigh CLAUDE.md and all rule files combined.
+
+**"Learning memory keeps growing back"**
+→ Expected: the protocol says "when in doubt, add it" and never says "consolidate". Growth is not the bug; the absence of a compaction step is. Add a recurring compaction to the project's protocol (archive resolved entries monthly), and prefer Step 8b fix #1 — rewording the read directive — so size stops being load-bearing in the first place.
 
 **"Claude forgot something it knew last session"**
 → Check auto memory: is it enabled (`/memory` toggle, `autoMemoryEnabled`)? Is the fact past line 200 / 25KB of MEMORY.md (not loaded)? Is it in a topic file Claude never opened? Promote critical facts into the first 200 lines of MEMORY.md, or into CLAUDE.md if it's actually an instruction.
