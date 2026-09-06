@@ -100,8 +100,14 @@ echo "    then remove. If unreachable, stage at .scratch/docs/lessons-to-promote
 echo "    and say so in the report. Never delete one."
 
 hr "Auto memory (learning memory Claude writes)"
-MEMDIR=$(find "$CFG/projects" -maxdepth 2 -type d -name memory 2>/dev/null | $GREP -i "$(basename "$PWD")" | head -1)
-if [ -n "${MEMDIR:-}" ]; then
+# Claude Code keys each project's memory by a slug of its ABSOLUTE path, with
+# "/" and spaces replaced by "-". Derive it rather than substring-matching on
+# the basename: a basename grep matches any project whose slug merely contains
+# these characters, so auditing /tmp/fixtures/acme can silently resolve to a
+# completely different project's memory store and report on the wrong repo.
+SLUG=$(printf '%s' "$PWD" | sed 's|[/ ]|-|g')
+MEMDIR="$CFG/projects/$SLUG/memory"
+if [ -d "$MEMDIR" ]; then
   echo "  $MEMDIR"
   [ -f "$MEMDIR/MEMORY.md" ] && {
     l=$(wc -l <"$MEMDIR/MEMORY.md" | tr -d ' '); b=$(wc -c <"$MEMDIR/MEMORY.md" | tr -d ' ')
