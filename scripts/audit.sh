@@ -80,6 +80,25 @@ done
 find .claude/rules -name '*.md' -type f 2>/dev/null -exec $GREP -nEil 'last updated|current sprint' {} \; 2>/dev/null
 echo "  (nothing listed = clean)"
 
+hr "Experience notes in instruction memory (RELOCATE, never delete)"
+# Learnings, preferences and do-not-repeat notes are the most expensive content
+# in a memory file — someone paid for them with a bug. They are misfiled here,
+# not worthless. Detection matters because a pruning pass that doesn't see them
+# as a distinct category will treat them as filler and bin them.
+found_notes=0
+for f in CLAUDE.md .claude/CLAUDE.md CLAUDE.local.md "$CFG/CLAUDE.md"; do
+  [ -f "$f" ] || continue
+  out=$($GREP -nEi '^#+ *(lessons|learnings|gotchas|history)|user prefers|\blesson\b|learned the hard way|do not repeat|don.t repeat|never again|last time we|we got burned|bit us|the .* outage|postmortem' "$f" 2>/dev/null)
+  [ -n "$out" ] && { echo "$out" | sed "s|^|  $f:|"; found_notes=1; }
+done
+find .claude/rules -name '*.md' -type f 2>/dev/null | while read -r r; do
+  $GREP -nEi 'user prefers|lesson learned|do not repeat|don.t repeat' "$r" 2>/dev/null | sed "s|^|  $r:|"
+done
+[ "$found_notes" -eq 0 ] && echo "  none detected"
+echo "  → these belong in learning memory. Write them to the destination FIRST,"
+echo "    then remove. If unreachable, stage at .scratch/docs/lessons-to-promote.md"
+echo "    and say so in the report. Never delete one."
+
 hr "Auto memory (learning memory Claude writes)"
 MEMDIR=$(find "$CFG/projects" -maxdepth 2 -type d -name memory 2>/dev/null | $GREP -i "$(basename "$PWD")" | head -1)
 if [ -n "${MEMDIR:-}" ]; then
