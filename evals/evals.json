@@ -34,7 +34,7 @@
         "Explained that tool definitions count toward the context window, not just instruction files",
         "Handed off to /context or the context-audit skill for actual measurement",
         "Did not invent specific token numbers it had no way to measure",
-        "Did not pad the report by trimming already-minimal files just to show activity"
+        "Made no edit that does not trace to a specific finding \u2014 an already-clean repo should end with a report and no diff"
       ]
     },
     {
@@ -49,7 +49,7 @@
         "Noted the frontmatter key itself was correct, so the defect is the pattern rather than the syntax",
         "Flagged the 'Last updated' / 'Current sprint' / version lines as volatile content that invalidates the cached prefix",
         "Did NOT report root-level markdown notes as clutter (this is a content repo with no package manifest)",
-        "Did NOT demand a .scratch/ directory or a Repository Hygiene section for this content repo",
+        "Did NOT add a Repository Hygiene section or a pre-emptive .scratch/ .gitignore entry to this content repo (staging an actual unrelocatable note there is legitimate and does not fail this)",
         "Preserved the 'we learned the hard way' note by relocating or staging it rather than deleting it",
         "Respected the vault's own rule that Sources/ is immutable"
       ]

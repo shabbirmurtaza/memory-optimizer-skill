@@ -133,8 +133,13 @@ that skill's job is measuring everything that occupies the window. Use both.
   "don't repeat this" notes are misfiled in CLAUDE.md, not worthless; they're
   often the most expensive content there. Write to the destination first, then
   remove. If the destination is unreachable, stage it in
-  `.scratch/docs/lessons-to-promote.md` and say so in the report. The same care
-  does not apply to filler — self-evident practices go straight in the bin.
+  `.scratch/docs/lessons-to-promote.md` and say so in the report — but only when
+  you actually hold a note that has nowhere else to go. The same care does not
+  apply to filler — self-evident practices go straight in the bin.
+- **Change nothing you cannot justify from a finding.** Every edit traces to
+  something the audit surfaced. A repo that is already in good shape should end
+  the pass with a report and no diff; inventing work to look useful is worse
+  than reporting "nothing to do here", because the user now has to review it.
 - Rule files under 100 lines, CLAUDE.md under 200 (under 100 is the ideal; 300
   is a hard ceiling). Apply the deletion filter *before* counting — cutting
   low-signal lines matters more than hitting a number.

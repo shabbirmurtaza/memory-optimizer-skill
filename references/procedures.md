@@ -224,11 +224,20 @@ removing it from CLAUDE.md, and verify the write landed.
 When you cannot reach the destination — auto memory lives outside the project
 directory, and a sandboxed session may not be able to write there — do **not**
 drop the note. Stage it inside the project at
-`.scratch/docs/lessons-to-promote.md` (gitignored), and say plainly in the
-report that these notes are staged and still need promoting into learning
-memory. A staged note the user can act on beats a deleted one they never learn
-about. If even that is impossible, quote the notes verbatim in your final
-report so they survive in the transcript.
+`.scratch/docs/lessons-to-promote.md`, and say plainly in the report that these
+notes are staged and still need promoting into learning memory. A staged note
+the user can act on beats a deleted one they never learn about. If even that is
+impossible, quote the notes verbatim in your final report so they survive in
+the transcript.
+
+**Staging is triggered by a note, never by the possibility of one.** Create
+`.scratch/` only at the moment you have specific text to put in it and nowhere
+better to put it, and add the `.gitignore` entry only then — because you just
+wrote a file that should not be committed, not as a precaution. A repo with no
+misfiled learnings should end the pass with no `.scratch/` and no new
+`.gitignore` line. Creating the directory pre-emptively is an unrequested edit
+to a clean repo, and in a docs or notes repo it also imposes a code-repo
+convention the project never asked for.
 
 Change table: `MOVE | experience note from CLAUDE.md → {learning memory} | memory separation`
 or `STAGE | experience note → .scratch/docs/lessons-to-promote.md | destination unreachable, needs promotion`
