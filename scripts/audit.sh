@@ -141,8 +141,13 @@ if [ -d .wolf ]; then
 fi
 
 hr "Skill & plugin listing (resident every session, ~1% of window is the budget)"
-sk=$(find "$CFG/skills" .claude/skills -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' ')
-pl=$(find "$CFG/plugins/cache" -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' ')
+# The plugin cache keeps every version it has downloaded, so a raw file count
+# multiplies each skill by its version history — one plugin showed 189 files for
+# 21 actual skills. Collapse to unique skill names, which is what the listing
+# actually carries.
+sk=$(find "$CFG/skills" .claude/skills -maxdepth 2 -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' ')
+pl=$(find "$CFG/plugins/cache" -name 'SKILL.md' 2>/dev/null \
+     | sed 's|.*/skills/||;s|/SKILL.md$||' | sort -u | wc -l | tr -d ' ')
 echo "  local skills: $sk    plugin skills: $pl    total entries: $((sk + pl))"
 [ $((sk + pl)) -gt 60 ] && echo "  FINDING large listing — past ~1% of the window entries truncate silently and skill routing degrades"
 echo "  → usage counters and disable syntax: references/procedures.md §13"
