@@ -148,11 +148,14 @@ if [ -f package.json ] || [ -f Cargo.toml ] || [ -f go.mod ] || [ -f pyproject.t
     -not -name CLAUDE.md -not -name README.md -not -name LICENSE.md \
     -not -name CHANGELOG.md -not -name CONTRIBUTING.md -not -name SECURITY.md 2>/dev/null \
     | sed 's/^/  possible root clutter: /'
+  # .scratch/ only earns its place where throwaway artifacts actually accumulate.
+  # Recommending it for a docs or notes repo imposes a code-repo convention on a
+  # project that has no use for it.
+  $GREP -q '^\.scratch/' .gitignore 2>/dev/null || echo "  .scratch/ NOT in .gitignore"
 else
   echo "  skipped — no package manifest found; this looks like a content or docs"
   echo "  repo, where root-level markdown is the product rather than clutter."
 fi
-$GREP -q '^\.scratch/' .gitignore 2>/dev/null || echo "  .scratch/ NOT in .gitignore"
 [ -f CLAUDE.local.md ] && { $GREP -q 'CLAUDE.local.md' .gitignore 2>/dev/null || echo "  CLAUDE.local.md NOT gitignored"; }
 
 hr "Next"

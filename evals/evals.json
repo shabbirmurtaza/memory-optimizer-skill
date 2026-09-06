@@ -23,33 +23,36 @@
     },
     {
       "id": 2,
-      "prompt": "I keep hitting token limits. /memory shows like 20 files loading at startup. Can you optimize my Claude Code setup?",
-      "expected_output": "Runs /memory to see current state, identifies global rules causing bloat, checks for scoped rules incorrectly loading globally, produces analysis report with file sizes, dry-run plan to reduce startup load. Focuses on moving scoped rules out of global load and splitting oversized files.",
+      "name": "cost-is-tool-definitions-not-markdown",
+      "prompt": "Claude is crawling in this repo and I keep running out of context. I've already been ruthless with CLAUDE.md \u2014 it's 11 lines. I've got one rule file. What else can you trim?",
+      "expected_output": "Recognises that the instruction files are already minimal and that further trimming is not the answer. Identifies the 12 MCP servers in .mcp.json as the dominant always-on cost, since tool definitions count toward the context window. Hands off to /context or the context-audit skill for real measurement rather than inventing numbers, and resists the user's framing that more trimming will help.",
       "files": [],
+      "fixture": "memory-optimizer-workspace/fixtures/eval-2",
       "assertions": [
-        "Identified that most rule files lack a paths: key and therefore load every session",
-        "Recommended scoping module-specific rules with paths: rather than deleting them",
-        "Produced a dry-run change table before executing changes",
-        "Stated what the user should run themselves (/memory) and why the subagent could not",
-        "Did not claim that @import defers loading cost",
-        "Pointed the user at /context or the context-audit skill for tool-definition and MCP cost"
-      ],
-      "fixture": "memory-optimizer-workspace/fixtures/eval-2"
+        "Stated that CLAUDE.md and the rule file are already lean and further trimming would not fix the problem",
+        "Identified .mcp.json / MCP servers as a major always-on context cost",
+        "Explained that tool definitions count toward the context window, not just instruction files",
+        "Handed off to /context or the context-audit skill for actual measurement",
+        "Did not invent specific token numbers it had no way to measure",
+        "Did not pad the report by trimming already-minimal files just to show activity"
+      ]
     },
     {
       "id": 3,
-      "prompt": "I added a new rule file .claude/rules/react.md but it's not being followed when I work on React components. The rule says 'use functional components with hooks' but Claude keeps suggesting class components.",
-      "expected_output": "Checks react.md frontmatter for correct paths: pattern, verifies file isn't over 100 lines, checks rule is concrete not abstract, verifies /memory shows it loading correctly when React files accessed. Diagnoses why rule isn't triggering (bad paths? abstract rule? file too long?).",
+      "name": "content-repo-volatile-stamps-dead-glob",
+      "prompt": "Can you clean up the memory setup in my research vault? Something feels off \u2014 I wrote a citation rule weeks ago and Claude has never once followed it.",
+      "expected_output": "Diagnoses that .claude/rules/citations.md targets **/*.tex while the vault contains only .md files, so the rule never loads \u2014 the key is correct, the pattern is dead. Flags the volatile 'Last updated' / 'Current sprint' / version lines in CLAUDE.md as cache-invalidating. Relocates rather than deletes the 'Lessons' note. Recognises this is a content repo with no package manifest and does NOT report root-level markdown as clutter or demand a .scratch/ directory.",
       "files": [],
+      "fixture": "memory-optimizer-workspace/fixtures/eval-3",
       "assertions": [
-        "Diagnosed the wrong frontmatter key ('globs:' instead of 'paths:') as a root cause",
-        "Noticed the glob pattern '**/*.jsx' does not match the project's .tsx component files",
-        "Flagged that react.md exceeds 100 lines, so the rule is buried among low-signal filler",
-        "Fixed both the frontmatter key and the glob pattern",
-        "Did not attempt to fix the problem by making the rule's wording more emphatic",
-        "Explained the diagnosis in terms of why the rule never loaded, not just what to change"
-      ],
-      "fixture": "memory-optimizer-workspace/fixtures/eval-3"
+        "Diagnosed that the citations rule's '**/*.tex' pattern matches nothing in a vault of .md files, so the rule never loads",
+        "Noted the frontmatter key itself was correct, so the defect is the pattern rather than the syntax",
+        "Flagged the 'Last updated' / 'Current sprint' / version lines as volatile content that invalidates the cached prefix",
+        "Did NOT report root-level markdown notes as clutter (this is a content repo with no package manifest)",
+        "Did NOT demand a .scratch/ directory or a Repository Hygiene section for this content repo",
+        "Preserved the 'we learned the hard way' note by relocating or staging it rather than deleting it",
+        "Respected the vault's own rule that Sources/ is immutable"
+      ]
     }
   ]
 }
