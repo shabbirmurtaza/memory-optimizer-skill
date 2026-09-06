@@ -221,9 +221,12 @@ Claude learned the hard way — often the most expensive content in the file. It
 is misfiled in CLAUDE.md, not worthless. Write it to its destination *before*
 removing it from CLAUDE.md, and verify the write landed.
 
-When you cannot reach the destination — auto memory lives outside the project
-directory, and a sandboxed session may not be able to write there — do **not**
-drop the note. Stage it inside the project at
+When you cannot reach the destination, do **not** drop the note. "Cannot
+reach" covers both senses: the store genuinely isn't there, *and* you are not
+permitted to touch it. Auto memory lives outside the project directory, so a
+session scoped to one repo, a sandbox, or a permission boundary all land here —
+and being told to stay inside a directory is the ordinary case, not an error
+worth working around. Stage it inside the project at
 `.scratch/docs/lessons-to-promote.md`, and say plainly in the report that these
 notes are staged and still need promoting into learning memory. A staged note
 the user can act on beats a deleted one they never learn about. If even that is
