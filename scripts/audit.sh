@@ -56,7 +56,12 @@ find "$CFG/rules" -name '*.md' -type f 2>/dev/null | while read -r f; do
 done
 
 hr "Nested / ancestor CLAUDE.md (monorepo)"
-find . -mindepth 2 -name CLAUDE.md -not -path '*/node_modules/*' 2>/dev/null | head -20
+# Depth-bounded and pruned on purpose. An unbounded walk is fine in a small
+# repo and pathological in a monorepo or a home directory — this script has to
+# stay cheap enough that nobody hesitates to run it.
+find . -maxdepth 5 \
+  \( -name node_modules -o -name .git -o -name vendor -o -name dist -o -name build \) -prune -o \
+  -mindepth 2 -name CLAUDE.md -print 2>/dev/null | head -20
 
 hr "Frontmatter key errors (globs: should be paths:)"
 $GREP -rl 'globs:' .claude/rules 2>/dev/null || echo "  none"
