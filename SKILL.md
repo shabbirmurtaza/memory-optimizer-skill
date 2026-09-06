@@ -129,6 +129,12 @@ that skill's job is measuring everything that occupies the window. Use both.
 
 - **Never auto-resolve rule conflicts.** Report them; the user decides.
 - **Always dry-run first.** Show the change table, wait for confirmation.
+- **Never delete an experience note — relocate it.** Learnings, preferences and
+  "don't repeat this" notes are misfiled in CLAUDE.md, not worthless; they're
+  often the most expensive content there. Write to the destination first, then
+  remove. If the destination is unreachable, stage it in
+  `.scratch/docs/lessons-to-promote.md` and say so in the report. The same care
+  does not apply to filler — self-evident practices go straight in the bin.
 - Rule files under 100 lines, CLAUDE.md under 200 (under 100 is the ideal; 300
   is a hard ceiling). Apply the deletion filter *before* counting — cutting
   low-signal lines matters more than hitting a number.

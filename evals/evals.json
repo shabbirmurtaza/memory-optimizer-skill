@@ -3,21 +3,53 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "My CLAUDE.md is 280 lines and I'm running out of tokens. My .claude/rules/ has subdirectories. The correct state is flat. Flatten it now — dry run first, then execute after confirmation. Also I think I'm importing the same shared rules twice.",
+      "prompt": "My CLAUDE.md is 280 lines and I'm running out of tokens. My .claude/rules/ has subdirectories. The correct state is flat. Flatten it now \u2014 dry run first, then execute after confirmation. Also I think I'm importing the same shared rules twice.",
       "expected_output": "Runs 'find .claude/rules -type d' to verify subdirs exist, produces dry-run report with change summary table showing: files to move from subdirectories, duplicate @imports to remove. Asks for confirmation before executing. After confirmation, flattens subdirs and produces final verification report.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Ran a read-only analysis pass before modifying any file",
+        "Produced a dry-run change table before executing changes",
+        "Flattened the .claude/rules subdirectories, as the user explicitly requested",
+        "Did NOT present flattening as a correctness fix (subdirectories are officially supported)",
+        "Removed the duplicated @shared/naming.md import so it appears once",
+        "Fixed the frontend rule's 'globs:' key to 'paths:'",
+        "Identified the 60-step Deployment Runbook as belonging in a Skill, not always-loaded CLAUDE.md",
+        "Moved the 'Lessons Learned' experience notes out of CLAUDE.md into learning memory",
+        "Final CLAUDE.md is under 200 lines",
+        "Flagged the 'Last updated: 2026-08-14' line as volatile content that invalidates the cached prefix",
+        "Pointed the user at /context or the context-audit skill for costs this skill does not measure"
+      ],
+      "fixture": "memory-optimizer-workspace/fixtures/eval-1"
     },
     {
       "id": 2,
       "prompt": "I keep hitting token limits. /memory shows like 20 files loading at startup. Can you optimize my Claude Code setup?",
       "expected_output": "Runs /memory to see current state, identifies global rules causing bloat, checks for scoped rules incorrectly loading globally, produces analysis report with file sizes, dry-run plan to reduce startup load. Focuses on moving scoped rules out of global load and splitting oversized files.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Identified that most rule files lack a paths: key and therefore load every session",
+        "Recommended scoping module-specific rules with paths: rather than deleting them",
+        "Produced a dry-run change table before executing changes",
+        "Stated what the user should run themselves (/memory) and why the subagent could not",
+        "Did not claim that @import defers loading cost",
+        "Pointed the user at /context or the context-audit skill for tool-definition and MCP cost"
+      ],
+      "fixture": "memory-optimizer-workspace/fixtures/eval-2"
     },
     {
       "id": 3,
       "prompt": "I added a new rule file .claude/rules/react.md but it's not being followed when I work on React components. The rule says 'use functional components with hooks' but Claude keeps suggesting class components.",
       "expected_output": "Checks react.md frontmatter for correct paths: pattern, verifies file isn't over 100 lines, checks rule is concrete not abstract, verifies /memory shows it loading correctly when React files accessed. Diagnoses why rule isn't triggering (bad paths? abstract rule? file too long?).",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Diagnosed the wrong frontmatter key ('globs:' instead of 'paths:') as a root cause",
+        "Noticed the glob pattern '**/*.jsx' does not match the project's .tsx component files",
+        "Flagged that react.md exceeds 100 lines, so the rule is buried among low-signal filler",
+        "Fixed both the frontmatter key and the glob pattern",
+        "Did not attempt to fix the problem by making the rule's wording more emphatic",
+        "Explained the diagnosis in terms of why the rule never loaded, not just what to change"
+      ],
+      "fixture": "memory-optimizer-workspace/fixtures/eval-3"
     }
   ]
 }

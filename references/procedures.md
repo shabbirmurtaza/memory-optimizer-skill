@@ -68,6 +68,20 @@ globs:                 paths:
 ---                    ---
 ```
 
+**Check the pattern against the actual codebase, not just the key.** A
+syntactically perfect `paths:` entry that matches nothing is indistinguishable,
+from the user's side, from a rule that doesn't exist — and it's the harder bug
+to see, because the file looks correct. `paths: ["**/*.jsx"]` in a TypeScript
+project never fires; neither does `src/**` in a repo that keeps code in `app/`.
+
+```bash
+# For each rule's glob, confirm something actually matches it
+find . -path './node_modules' -prune -o -name '*.jsx' -print | head
+```
+
+Fixing the key while leaving a dead pattern in place is worse than leaving both
+broken: the rule now looks scoped and correct, so nobody revisits it.
+
 Also verify rules are **concrete and verifiable**, since an abstract rule
 costs tokens without changing behaviour:
 
@@ -202,7 +216,22 @@ Move experience notes to learning memory — OpenWolf projects to
 `## Key Learnings`, mistakes → `## Do-Not-Repeat`); everything else to auto
 memory.
 
+**Move means move, never delete.** An experience note is something the user or
+Claude learned the hard way — often the most expensive content in the file. It
+is misfiled in CLAUDE.md, not worthless. Write it to its destination *before*
+removing it from CLAUDE.md, and verify the write landed.
+
+When you cannot reach the destination — auto memory lives outside the project
+directory, and a sandboxed session may not be able to write there — do **not**
+drop the note. Stage it inside the project at
+`.scratch/docs/lessons-to-promote.md` (gitignored), and say plainly in the
+report that these notes are staged and still need promoting into learning
+memory. A staged note the user can act on beats a deleted one they never learn
+about. If even that is impossible, quote the notes verbatim in your final
+report so they survive in the transcript.
+
 Change table: `MOVE | experience note from CLAUDE.md → {learning memory} | memory separation`
+or `STAGE | experience note → .scratch/docs/lessons-to-promote.md | destination unreachable, needs promotion`
 
 ## 9. Auto memory
 
