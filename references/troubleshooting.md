@@ -91,6 +91,26 @@ Work through auto memory:
 Promote genuinely critical facts into the first 200 lines of MEMORY.md, or
 into CLAUDE.md if it's actually an instruction rather than a learning.
 
+## "I optimized everything and token usage barely moved"
+
+You almost certainly audited only what `/memory` displays. `/memory` shows
+instruction memory. It does not show mandated-read files, the skill and plugin
+listing, or MCP tool schemas. In a mature project those three routinely
+outweigh CLAUDE.md and every rule file combined.
+
+Run [procedures §12](procedures.md#12-protocol-learning-memory-mandated-read-files)
+and [§13](procedures.md#13-the-skill-and-plugin-listing), then `/context` or the
+`context-audit` skill, before concluding a project is lean.
+
+## "Learning memory keeps growing back"
+
+Expected. The protocol says "when in doubt, add it" and never says
+"consolidate". Growth is not the bug; the absence of a compaction step is.
+
+Add a recurring compaction to the project's protocol — archive resolved entries
+monthly — and prefer the cheapest fix in §12: reword the read directive so file
+size stops being load-bearing in the first place.
+
 ## High token usage persists after optimization
 
 The markdown was probably never the biggest consumer. Everything in the
@@ -106,6 +126,12 @@ trimming will help. Then check, in order:
 3. `@import`s mistaken for lazy loading — imported files load in full
 4. An oversized auto memory MEMORY.md
 5. Experience notes bloating CLAUDE.md
+6. **Mandated-read learning memory** — a protocol ordering a full read of
+   `.wolf/cerebrum.md` costs exactly what an auto-loaded file costs, while
+   appearing in neither `/memory` nor `/context` (§12)
+7. **The skill and plugin listing** — every installed skill's description is
+   resident every session; a few plugins can exceed the whole CLAUDE.md
+   budget (§13)
 
 ## Cache seems to re-process everything each session
 

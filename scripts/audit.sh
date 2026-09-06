@@ -120,6 +120,33 @@ else
   echo "  none found for this project"
 fi
 
+hr "Mandated-read files (cost like auto-loaded, invisible to /memory and /context)"
+# A protocol saying "before generating code, read X" costs exactly what an
+# auto-loaded file costs, but appears in no audit surface. In a mature project
+# this is routinely the single largest token sink.
+mand=0
+for proto in .wolf/OPENWOLF.md CLAUDE.md .claude/CLAUDE.md; do
+  [ -f "$proto" ] || continue
+  out=$($GREP -nEi "read (the )?[\`\"']?[A-Za-z0-9_./-]+\.(md|json)|before (generating|reading|writing)" "$proto" 2>/dev/null | head -8)
+  [ -n "$out" ] && { echo "$out" | sed "s|^|  $proto:|"; mand=1; }
+done
+[ "$mand" -eq 0 ] && echo "  no read directives found"
+if [ -d .wolf ]; then
+  echo "  learning-memory sizes (25KB / 200 lines is the budget):"
+  find .wolf -maxdepth 1 -name '*.md' -exec wc -c -l {} + 2>/dev/null | sort -n | sed 's/^/    /'
+  if [ -f .wolf/cerebrum.md ]; then
+    dup=$($GREP "^## " .wolf/cerebrum.md 2>/dev/null | sed 's/ (.*//;s/ —.*//' | sort | uniq -c | sort -rn | awk '$1>1' | head -5)
+    [ -n "$dup" ] && { echo "    duplicate section headers (append-only drift):"; echo "$dup" | sed 's/^/      /'; }
+  fi
+fi
+
+hr "Skill & plugin listing (resident every session, ~1% of window is the budget)"
+sk=$(find "$CFG/skills" .claude/skills -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' ')
+pl=$(find "$CFG/plugins/cache" -name 'SKILL.md' 2>/dev/null | wc -l | tr -d ' ')
+echo "  local skills: $sk    plugin skills: $pl    total entries: $((sk + pl))"
+[ $((sk + pl)) -gt 60 ] && echo "  FINDING large listing — past ~1% of the window entries truncate silently and skill routing degrades"
+echo "  → usage counters and disable syntax: references/procedures.md §13"
+
 hr "Cross-scope duplicate loads (relocated config dir only)"
 if [ "$CFG" != "$HOME/.claude" ]; then
   for f in CLAUDE.md RTK.md; do

@@ -35,14 +35,30 @@ flagged. Don't read all the procedures — read the ones you need.
 
 ## The load-cost model
 
-Three mechanisms with different costs. Content in the wrong one is the single
-most common defect:
+Five mechanisms with different costs. Content in the wrong one is the single
+most common defect — and the last two are invisible to `/memory`, which is why
+audits that rely on it conclude a bloated project is lean:
 
 | | Loads | Best for | Risk |
 |---|---|---|---|
 | **CLAUDE.md / rules without `paths:`** | Every session, automatically | Universal rules — code style, build commands, safe-change rules | Bloats context, buries key rules |
 | **Rules with `paths:`** | When matching files are touched | Language- or directory-specific guidelines | Low; wrong glob = never loads |
 | **Skills** | Descriptions at start, body on demand | Occasional specialized workflows — deploy runbooks, migrations, framework setup | Minimal |
+| **Mandated-read files** | Every session, because a protocol orders it | Nothing, past a point — see below | Costs exactly like an auto-loaded file while appearing in no audit |
+| **The skill & plugin listing** | Every session, one entry per installed skill | — | Silently truncates past ~1% of the window; skills stop being selected |
+
+**Mandated-read memory** is the one people miss. A project protocol says
+*"before generating code, read `.wolf/cerebrum.md`"* — nothing auto-loads it, so
+`/memory` doesn't list it and `/context` doesn't attribute it, but every session
+pays for it in full. In a mature project this is routinely the single largest
+token sink. Grep the protocol files for read directives; see
+[procedures §12](references/procedures.md).
+
+**The learning-memory paradox** follows from this skill's own advice. Memory
+separation funnels experience notes *into* learning memory — and if that
+destination has no ceiling, no routing rule and no archive, it grows until it
+costs more than everything this skill just trimmed. "Move it to cerebrum" is
+never the end of the story.
 
 When a CLAUDE.md section is really an occasional procedure, extract it to a
 Skill. That removes the per-session cost without losing the knowledge.
@@ -140,6 +156,17 @@ that skill's job is measuring everything that occupies the window. Use both.
   something the audit surfaced. A repo that is already in good shape should end
   the pass with a report and no diff; inventing work to look useful is worse
   than reporting "nothing to do here", because the user now has to review it.
+- **Learning memory is budgeted too.** Routing notes there without checking its
+  size is how this skill fails at its own job. Any file a protocol mandates
+  reading in full stays under 200 lines / 25KB — the same budget as `MEMORY.md`,
+  for the same reason. Past that, either the protocol changes ("grep it", not
+  "read it") or the file is split and archived.
+- **Never delete learning memory — archive it.** Compaction moves resolved
+  entries to `<memory-dir>/archive/<file>-<YYYY-MM>.md`; it never discards. The
+  knowledge stays greppable, it just stops costing tokens every session.
+  Deleting defeats the purpose; archiving preserves it. Entries describing an
+  active hazard — deploy safety, credential handling, data-loss traps — stay in
+  the live file regardless of age. Age is not the test; the deletion filter is.
 - Rule files under 100 lines, CLAUDE.md under 200 (under 100 is the ideal; 300
   is a hard ceiling). Apply the deletion filter *before* counting — cutting
   low-signal lines matters more than hitting a number.
@@ -213,6 +240,11 @@ One table, every proposed change, each with a reason:
 - [ ] Instruction and learning memory are separate — no experience notes in
       CLAUDE.md or rules
 - [ ] `MEMORY.md` under 200 lines / 25KB; no content duplicated with CLAUDE.md
+- [ ] Every mandated-read file under 200 lines / 25KB, or its read directive
+      reworded to a targeted grep
+- [ ] Learning memory has a ceiling and an archive, not just an inbox
+- [ ] Skill and plugin listing within ~1% of the context window; zero-usage
+      plugins disabled
 - [ ] `CLAUDE.local.md` gitignored, if it exists
 - [ ] If `$CLAUDE_CONFIG_DIR` ≠ `~/.claude`: sibling files resolve to one inode
 - [ ] Code repos only: root clean, `.scratch/` gitignored, hygiene rule present

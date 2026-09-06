@@ -16,6 +16,8 @@ flagged rather than all of them.
 9. [Auto memory](#9-auto-memory)
 10. [Session load verification](#10-session-load-verification)
 11. [Repository hygiene](#11-repository-hygiene)
+12. [Protocol learning memory (mandated-read files)](#12-protocol-learning-memory-mandated-read-files)
+13. [The skill and plugin listing](#13-the-skill-and-plugin-listing)
 
 ---
 
@@ -313,3 +315,103 @@ command grep -q "^\.scratch/" .gitignore || printf '\n# throwaway artifacts\n.sc
 **Never `git mv` automatically.** Produce a recommendation table — architecture
 and API docs to `docs/`, AI-generated audits, plans and handovers to
 `.scratch/docs/` — and let the user decide what's worth keeping.
+
+## 12. Protocol learning memory (mandated-read files)
+
+**Never skip this in a project with `.wolf/` or any equivalent protocol.**
+Procedure 8 routes experience notes here, so this is where the tokens end up.
+These files are append-only by design and nothing in the protocol ever says
+"consolidate", so they grow until they dwarf every file this skill normally
+audits — while remaining invisible to both `/memory` and `/context`.
+
+### Detection
+
+```bash
+# Size every learning-memory file. Chars matter more than lines here: entries are long.
+find .wolf -maxdepth 1 -name '*.md' -exec wc -c -l {} + 2>/dev/null | sort -n
+
+# Which files does the protocol ORDER a full read of? These cost tokens invisibly.
+command grep -nEi "read .*\.(md|json)|before (generating|reading)" .wolf/OPENWOLF.md 2>/dev/null
+
+# Section drift: an append-only file grows duplicate topic headers over time
+command grep "^## " .wolf/cerebrum.md 2>/dev/null | sed 's/ (.*//;s/ —.*//' | sort | uniq -c | sort -rn | head
+
+# Age distribution — how much is history rather than live guidance?
+command grep -oE "20[0-9]{2}-[01][0-9]" .wolf/cerebrum.md 2>/dev/null | sort | uniq -c
+```
+
+### Thresholds
+
+| Signal | Threshold | Meaning |
+|---|---|---|
+| Mandated-read file size | > 25KB / 200 lines | Over the same budget as `MEMORY.md`. Fix the protocol or split the file. |
+| Duplicate `##` topic headers | any canonical section appearing 2+ times | Append-only drift; the protocol's own structure has been abandoned. |
+| Entries older than ~2 months | > 40% of the file | Mostly history, not guidance. Archive candidates. |
+| Append-only session log | any size | Harmless if the protocol only ever *writes* it. Confirm nothing reads it, then rotate monthly. |
+| File map (`anatomy.md`) | > 25KB | Legitimately useful, but must be grepped, never read whole. |
+
+### Fixes, cheapest first
+
+1. **Change the instruction, not the file.** Rewrite the read directive from
+   *"read X and respect every entry"* to *"read the `## Do-Not-Repeat` section in
+   full; grep the rest for the area being touched."* One line, zero knowledge
+   lost, zero entries moved — the highest payoff per unit of risk. Always
+   propose this first.
+2. **Route domain content into path-scoped rules.** Learnings tied to one
+   subsystem belong in `.claude/rules/` with `paths:` frontmatter, so they load
+   only when that subsystem is touched. Same recall, zero baseline cost.
+3. **Merge drifted sections** back into the protocol's canonical set
+   (OpenWolf: `## User Preferences`, `## Key Learnings`, `## Do-Not-Repeat`,
+   `## Decision Log`), deduplicating as you go.
+4. **Archive, never delete.** Move to `.wolf/archive/cerebrum-<YYYY-MM>.md`.
+   Archive an entry when it is *resolved history* rather than live guidance —
+   marked CLOSED, FIXED, ✅, "where it lives now", or superseded by a later
+   entry. Keep anything still true and still behaviour-changing.
+
+**Safety rule:** entries describing an active hazard stay in the live file no
+matter how old — deploy safety, credential handling, data-loss traps. Age is
+not the test; "would removing this cause a mistake?" is.
+
+Change table: `FIX | .wolf/OPENWOLF.md read directive | whole-file read → targeted grep`,
+`MOVE | cerebrum {section} → .claude/rules/{topic}.md | path-scoped, loads on demand`,
+`ARCHIVE | cerebrum {section} → .wolf/archive/{file} | resolved history`,
+`MERGE | N duplicate {section} headers | append-only drift`
+
+## 13. The skill and plugin listing
+
+Every installed skill and command contributes its **name and description** to a
+listing resident in *every* session, used or not. Plugins multiply this — one
+plugin can add 50+ entries. It is invisible to `/memory`, which shows only
+instruction memory, and is frequently the second-largest sink after
+mandated-read files.
+
+The listing is budgeted at roughly **1% of the context window** (~2,000 tokens
+at 200k). Past that, entries are silently truncated and skill routing degrades:
+skills stop being selected because Claude can no longer see them.
+
+```bash
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+find "$CFG/skills" .claude/skills -name 'SKILL.md' 2>/dev/null | wc -l
+find "$CFG/plugins/cache" -name 'SKILL.md' 2>/dev/null | wc -l
+
+# Lifetime usage counters, never windowed
+python3 -c "import json,os;p=os.path.expanduser(os.environ.get('CLAUDE_CONFIG_DIR','~/.claude')+'/.claude.json');d=json.load(open(p));[print(v['usageCount'],k) for k,v in sorted((d.get('pluginUsage') or {}).items(), key=lambda x:-x[1]['usageCount'])]" 2>/dev/null
+```
+
+Check:
+
+- **Zero-usage plugins** → disable with `enabledPlugins: {"<name>@<marketplace>": false}`. Reversible.
+- **Duplicate collections** → a plugin plus a local `.claude/skills/` copy of the
+  same set doubles the listing. Keep whichever the counters show you invoke.
+- **Unused individual skills** → `skillOverrides: {"<name>": "off"}`. Files stay on disk.
+- **A counter is seeded at install time** — a `lastUsedAt` on a zero-count plugin
+  is the seed, not evidence of use. Confirm from transcripts before calling it used.
+- Purely passive plugins (themes, output styles, LSP backends) have no usage
+  signal at all. Say so, recommend removal since it is reversible, and let the
+  user decide.
+
+**Caveat:** never prune a skill collection whose members dispatch into each
+other piecemeal — that breaks the chain. Disable the whole thing or leave it.
+
+Change table: `DISABLE | plugin {name} | 0 invocations, N est. resident tokens`,
+`DISABLE | skill {name} | unused`
