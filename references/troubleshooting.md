@@ -34,6 +34,28 @@ Four causes, in rough order of likelihood:
 4. `$CLAUDE_CONFIG_DIR` differs from `~/.claude`, so both scopes load — see
    procedures §4 for the symlink fix
 
+## A rule never fires, and its frontmatter looks correct
+
+This is the most common real cause of "I wrote a rule weeks ago and Claude has
+never once followed it" — and the hardest to see, because nothing looks wrong.
+The key is `paths:`, the YAML parses, the file is short and concrete. The
+pattern simply matches nothing that exists.
+
+Typical shapes: `**/*.jsx` in a codebase that is entirely `.tsx`; `**/*.tex` in
+a vault of `.md` notes; `src/**` in a repo that keeps its code in `app/`; a
+path that was accurate before a directory was renamed.
+
+```bash
+# For each rule, confirm its glob matches at least one real file
+command grep -A3 '^paths:' .claude/rules/*.md
+find . -path ./node_modules -prune -o -name '*.jsx' -print | head   # substitute the extension
+```
+
+A scoped rule only loads when a matching file enters context, so a dead pattern
+is indistinguishable from a rule that does not exist. Fix the pattern against
+the real tree, and check the whole set at once — a stack that was written for
+an earlier layout usually has more than one stale entry.
+
 ## Rules aren't being followed
 
 First check length and concreteness: over ~100 lines, or abstract phrasing
